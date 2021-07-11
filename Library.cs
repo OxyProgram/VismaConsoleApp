@@ -28,7 +28,8 @@ namespace VismaConsoleApp
 
         public void addBook(Book book)
         {
-            string bookJson = JsonSerializer.Serialize(book);
+            //Converts Book Object to type json string
+            string bookJson = BookObjectToJson(book);
             _books.Add(bookJson);
         }
 
@@ -36,7 +37,7 @@ namespace VismaConsoleApp
         {
             foreach(string bookJSON in _books)
             {
-                Book book = JsonSerializer.Deserialize<Book>(bookJSON);
+                Book book = BookJsonToObject(bookJSON);
                 if(book.ISBN.Equals(bookISBN))
                 {
                     return _books.Remove(bookJSON);
@@ -48,10 +49,10 @@ namespace VismaConsoleApp
         public List<Book> listAllBooks()
         {
             //Converts all elements from type 'string' to type 'Book'
-            List<Book> books = new List<Book>();
-            foreach(string s in _books)
+            List<Book> books = new();
+            foreach(string bookJson in _books)
             {
-                books.Add(JsonSerializer.Deserialize<Book>(s));
+                books.Add(BookJsonToObject(bookJson));
             }
             return books;
         }
@@ -59,24 +60,33 @@ namespace VismaConsoleApp
         public bool returnBook(string name, string surname, string bookISBN, DateTime returned)
         {
             //Checks if such client exists
-            if (_clients.Exists(x => x.Name.Equals(name) && x.Surname.Equals(surname)))
+            if (clientExists(name, surname))
             {
-                Person person = _clients.Find(x => x.Name.Equals(name) && x.Surname.Equals(surname));
+                Person person = findClient(name, surname);
                 //Checks if this person had taken this book.
                 if (!person.BooksTaken.Exists(x => x.BookISNB.Equals(bookISBN)))
                     return false;
+
+                _clients.Remove(person);
+
+                //Removes a person's record of having taken a book
                 BookTake take = person.BooksTaken.Find(x => x.BookISNB.Equals(bookISBN));
                 person.BooksTaken.Remove(take);
-                take.Returned = returned;
+                person.NumberOfBooks -= 1;
+                _clients.Add(person);
+
+                take.Returned = returned; //Marks when was the book returned
+
                 //Checks the ammount of time that has passed since taking the book
                 if ((take.Returned - take.Taken).TotalDays > deadline)
                     Console.WriteLine("The Book has been returned too late! This wasn't very cash money of you\n");
+
                 //Makes returned book available again.
                 Book returnedBook = listAllBooks().Find(x => x.ISBN.Equals(bookISBN));
-                string returnedBookJson = JsonSerializer.Serialize(returnedBook);
+                string returnedBookJson = BookObjectToJson(returnedBook);
                 _books.Remove(returnedBookJson);
                 returnedBook.IsTaken = false;
-                returnedBookJson = JsonSerializer.Serialize(returnedBook);
+                returnedBookJson = BookObjectToJson(returnedBook);
                 _books.Add(returnedBookJson);
 
                 return true;
@@ -90,39 +100,20 @@ namespace VismaConsoleApp
             if (!_books.Any())
                 return false;
 
-            //Checks if the book exists in the library and if it's available
-            bool bookAvailable = _books.Exists(x => 
-            {
-                Book b = JsonSerializer.Deserialize<Book>(x);
-                if (b.ISBN.Equals(bookISBN) && b.IsTaken == false)
-                {
-                    //This code makes found book unavailable.
-                    Book temp = b;
-                    string bJSON = JsonSerializer.Serialize(b);
-                    _books.Remove(bJSON);
-                    temp.IsTaken = true;
-                    string tempJSON = JsonSerializer.Serialize(temp);
-                    _books.Add(tempJSON);
-                    return true;
-
-                }
-                else
-                    return false;
-            });
-
-            //If book not available return false;
-            if (!bookAvailable)
+            //If book is not available return false;
+            if (!IsBookAvailable(bookISBN))
                 return false;
 
-
-
             //Checks if the client has used this library in the past
-            if (_clients.Exists(x => x.Name.Equals(name) && x.Surname.Equals(surname)))
+            if (clientExists(name, surname))
             {
-                //Copies the person from customer list.
-                Person person = _clients.Find(x => x.Name.Equals(name) && x.Surname.Equals(surname));
+                //Copies the person from clients list.
+                Person person = findClient(name, surname);
+
+                //Checks if the client has taken more book than allowed
                 if (person.NumberOfBooks >= maxNumberOfBooksTaken)
                     return false;
+
                 _clients.Remove(person);
                 //Adds a book taking record to person object.
                 person.BooksTaken.Add(new BookTake(bookISBN, taken));
@@ -145,5 +136,49 @@ namespace VismaConsoleApp
                 return true;
             }
         }
+
+        private static string BookObjectToJson(Book book)
+        {
+            string bookJson = JsonSerializer.Serialize(book);
+            return bookJson;
+        }
+
+        private static Book BookJsonToObject(string bookJson)
+        {
+            Book book = JsonSerializer.Deserialize<Book>(bookJson);
+            return book;
+        }
+
+        private bool clientExists(string name, string surname)
+        {
+            return _clients.Exists(x => x.Name.Equals(name) && x.Surname.Equals(surname));
+        }
+
+        private Person findClient(string name, string surname)
+        {
+            return _clients.Find(x => x.Name.Equals(name) && x.Surname.Equals(surname));
+        }
+
+        private bool IsBookAvailable(string bookISBN)
+        {
+            return _books.Exists(x =>
+            {
+                Book book = BookJsonToObject(x);
+                if (book.ISBN.Equals(bookISBN) && book.IsTaken == false)
+                {
+                    //This code makes found book unavailable.
+                    string bookJson = BookObjectToJson(book);
+                    _books.Remove(bookJson);
+                    book.IsTaken = true;
+                    bookJson = BookObjectToJson(book);
+                    _books.Add(bookJson);
+                    return true;
+
+                }
+                else
+                    return false;
+            });
+        }
+
     }
 }

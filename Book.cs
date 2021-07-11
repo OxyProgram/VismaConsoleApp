@@ -37,10 +37,10 @@ namespace VismaConsoleApp
         public string ISBN { get => _ISBN; set => _ISBN = value; }
         public bool IsTaken { get => _isTaken; set => _isTaken = value; }
 
-        public void toString()
+        public string toString()
         {
-            Console.WriteLine("Name: " + _name + " Author: " + _author + " Category: " + Category +
-                "\n Language: " + _language + " Publication Date: " + _publicationDate.ToString() + " ISBN " + _ISBN + " available: " + _isTaken.ToString() + "\n\n");
+            return ($"Name: {_name}  Author: {_author}  Category: {_category} \n" +
+                $"Language: {_language}  Publication Date: {_publicationDate.ToShortDateString()} ISBN: {_ISBN}  Available: {_isTaken}\n\n");
         }
 
     }

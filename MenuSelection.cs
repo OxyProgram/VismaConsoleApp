@@ -164,7 +164,7 @@ namespace VismaConsoleApp
             }
             foreach(Book b in sortedList)
             {
-                b.toString();
+                Console.WriteLine(b.toString());
             }
             Console.ReadKey();
             Menu();
